@@ -29,6 +29,7 @@ class CheckStatus(Enum):
 
 class ARPCheck(object):
     _iface: str
+    _ping_check: str
     _check_status: CheckStatus
 
     _gateway_ip: str
@@ -43,8 +44,9 @@ class ARPCheck(object):
     GATEWAY_CHECK_INTERVAL: int = 10
     UNIQUE_GATEWAYS_FOR_COOLDOWN: int = 3  # 3 times period check unique -> 30s continuous
 
-    def __init__(self, iface: str):
+    def __init__(self, iface: str, ping_check: str = "8.8.8.8"):
         self._iface = iface
+        self._ping_check = ping_check
         self._check_status = CheckStatus.WARN
 
         self._gateway_ip = None
@@ -113,8 +115,16 @@ class ARPCheck(object):
 
     def _check_gateway(self):
         print("Checking current gateway...")
-        # TODO: add timeout...
-        response = sr1(IP(dst="8.8.8.8", ttl=0) / ICMP())
+        response = sr1(IP(dst=self._ping_check, ttl=0) / ICMP(), timeout=10)
+        if not response:
+            print("... no response")
+            with self._thread_lock:
+                if self._correct_gateway_counter > 0:
+                    self._correct_gateway_counter -= 1
+                if self._correct_gateway_counter == 0 and self._check_status != CheckStatus.ALERT:
+                    self._check_status = CheckStatus.WARN
+            return
+
         response_ip = response[IP]
         print("Found gateway IP: %s" % response_ip.src)
         used_gateway = response_ip.src
@@ -164,7 +174,7 @@ class ARPCheck(object):
 
 def main():
     iface = "en0"
-    arp_check = ARPCheck(iface)
+    arp_check = ARPCheck(iface=iface, ping_check="192.168.1.1")
     arp_check.activate()
 
     input("Press ENTER to stop program...\n")
