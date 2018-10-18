@@ -1,6 +1,7 @@
-from scapy.all import sniff, Thread
+from scapy.all import sniff, Thread, Scapy_Exception
 
 from base.module import Module
+from base.status import CheckStatus
 
 
 class DeauthCheck(Module):
@@ -30,7 +31,15 @@ class DeauthCheck(Module):
 
     def _start_sniffing(self):
         try:
-            sniff(iface=self._iface, store=False, prn=self._handle_packet)
+            sniff(iface=self._iface,
+                  filter="wlan type mgt",
+                  store=False,
+                  prn=self._handle_packet)
+        except Scapy_Exception as e:
+            msg: str = e.args[0]
+            if msg.startswith('Got an empty BPF'):
+                print(">> DeauthCheck: cannot be enabled - WiFi must be in monitor mode")
+                self._status = CheckStatus.WARN
         except InterruptedError:
             pass
 
