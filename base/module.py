@@ -7,7 +7,7 @@ class Module(ABC):
     _iface: str
     _status: CheckStatus
 
-    def __init__(self, iface: str):
+    def __init__(self, iface: str = None):
         self._iface = iface
         self._status = CheckStatus.WARN
 
