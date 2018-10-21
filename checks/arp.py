@@ -9,19 +9,31 @@ from base.status import CheckStatus
 
 
 class ARPCheck(Module):
-    _ping_check_ip: str
+    """
+    Checks for ARP spoofing attacks against the client.
 
-    _gateway_ip: str
-    _expected_gateway_mac: str
-    _correct_gateway_counter: int
+    The module first tries to periodically check the gateway by doing an ICMP ping packet to `8.8.8.8`
+    with `ttl=0` to get the reacting gateway. It then does an ARP Request for that IP and validates
+    what ARP Replies come in - if there is a unique response and it matches the first one we found.
 
-    _periodic_timer: Timer
-    _sniff_thread: Thread
-    _interrupted: bool
-    _thread_lock: RLock
+    Apart from that it listens on the given interface for ARP Replies and validates them against
+    the known MAC for the gateway IP.
+
+    :ivar str _ping_check_ip: IP to use for gateway IP extraction (default `8.8.8.8`)
+    :ivar str _gateway_ip: IP of the suspected gateway
+    :ivar str _expected_gateway_mac: MAC address of the suspected gateway
+    :ivar int _correct_gateway_counter: Number of times the correct gateway has been seen
+    :ivar Timer _periodic_timer: Timer for periodic checks
+    :ivar Thread _sniff_thread: Thread containing the sniff for unexpected ARP Replies
+    :ivar bool _interrupted: Flag to signal shutdown
+    :ivar RLock _thread_lock: Lock to synchronize member updates
+    """
 
     GATEWAY_CHECK_INTERVAL: int = 10
-    UNIQUE_GATEWAYS_FOR_COOLDOWN: int = 3  # 3 times period check unique -> 30s continuous
+    """Periodic check interval in seconds"""
+
+    UNIQUE_GATEWAYS_FOR_COOLDOWN: int = 3
+    """Number of times to see correct gateway in order to lower check status"""
 
     def __init__(self, iface: str, ping_check_ip: str = "8.8.8.8"):
         super(ARPCheck, self).__init__(iface=iface)

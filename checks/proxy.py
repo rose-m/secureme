@@ -15,7 +15,7 @@ Fingerprint = namedtuple(typename="Fingerprint",
                          field_names=["name", "sha1"])
 
 
-def _get_ssl_cert() -> Optional[List[X509]]:
+def get_ssl_cert() -> Optional[List[X509]]:
     with socket() as sock:
         sock.connect(("www.google.com", 443))
         ctx = SSL.Context(SSL.SSLv23_METHOD)
@@ -29,16 +29,25 @@ def _get_ssl_cert() -> Optional[List[X509]]:
 
 
 class ProxyCheck(Module):
-    _fingerprints: List[Fingerprint]
-    _periodic_timer: Timer
+    """
+    Checks if there is a malicious proxy intercepting HTTPS traffic.
+
+    The module first tries to extract all now Google CA Fingerprints by parsing https://pki.goog. Once
+    the fingerprints have been loaded it periodically does a HTTPS request to https://www.google.com:443
+    and checks the certificate chain whether a fingerprint matches the known CAs.
+
+    :ivar Timer _periodic_timer: Timer for periodic check
+    :ivar List[Fingerprint] _fingerprints: List of known fingerprints
+    """
 
     PROXY_CHECK_INTERVAL = 15
+    """Periodic check interval in seconds"""
 
     def __init__(self):
         super(ProxyCheck, self).__init__()
 
-        self._periodic_timer = None
-        self._fingerprints = []
+        self._periodic_timer: Timer = None
+        self._fingerprints: List[Fingerprint] = []
 
     def activate(self):
         self._do_periodic_check()
@@ -70,7 +79,7 @@ class ProxyCheck(Module):
     def _check_certificate(self):
         certs: Optional[List[X509]] = None
         try:
-            certs = _get_ssl_cert()
+            certs = get_ssl_cert()
         except Exception as e:
             print("Error: %s" % e)
 

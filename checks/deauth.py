@@ -5,6 +5,13 @@ from base.status import CheckStatus
 
 
 class DeauthCheck(Module):
+    """
+    Checks if there are unexpected deauth packets being sent over WiFi.
+
+    **WARNING**: This module does only work when the interface is in monitor mode. Therefore
+    implementation is incomplete...
+    """
+
     _sniff_thread: Thread
     _interrupted: bool
 
